@@ -3,19 +3,19 @@
  * Book My Stay App - Hotel Booking Management System
  * ==========================================================
  *
- * Use Case 8: Booking History & Reporting
+ * Use Case 9: Error Handling & Validation
  *
  * Description:
- * This program demonstrates how confirmed reservations
- * can be stored in booking history and later retrieved
- * for reporting. Historical tracking provides visibility
- * and supports audits without external storage.
+ * This program demonstrates structured validation and
+ * error handling for booking inputs. Invalid room types
+ * or inconsistent states are detected early, and custom
+ * exceptions provide clear failure messages.
  *
  * @author Developer
- * @version 8.1
+ * @version 9.1
  */
 
-import java.util.*;
+import java.util.Scanner;
 
 public class BookMyStay {
 
@@ -25,24 +25,33 @@ public class BookMyStay {
     public static void main(String[] args) {
 
         System.out.println("=======================================");
-        System.out.println("   Book My Stay - Booking History      ");
-        System.out.println("              Version 8.1              ");
+        System.out.println("   Book My Stay - Booking Validation   ");
+        System.out.println("              Version 9.1              ");
         System.out.println("=======================================\n");
 
-        // Initialize booking history
-        BookingHistory bookingHistory = new BookingHistory();
+        Scanner scanner = new Scanner(System.in);
 
-        // Simulate confirmed reservations (from Use Case 6)
-        bookingHistory.addReservation(new Reservation("Abhi", "Single Room"));
-        bookingHistory.addReservation(new Reservation("Subha", "Double Room"));
-        bookingHistory.addReservation(new Reservation("Vanmathi", "Suite Room"));
+        try {
+            // Collect guest input
+            System.out.print("Enter guest name: ");
+            String guestName = scanner.nextLine();
 
-        // Initialize report service
-        BookingReportService reportService = new BookingReportService(bookingHistory);
+            System.out.print("Enter room type (Single/Double/Suite): ");
+            String roomType = scanner.nextLine();
 
-        // Generate and display booking history report
-        System.out.println("Booking History and Reporting\n");
-        reportService.generateReport();
+            // Validate input
+            InvalidBookingValidator.validateRoomType(roomType);
+
+            // If validation passes, simulate booking confirmation
+            System.out.println("Booking confirmed for Guest: " + guestName
+                    + ", Room Type: " + roomType);
+
+        } catch (InvalidBookingException e) {
+            // Handle validation failure gracefully
+            System.out.println("Booking failed: " + e.getMessage());
+        } finally {
+            scanner.close();
+        }
 
         System.out.println("\nApplication terminated.");
     }
@@ -51,94 +60,37 @@ public class BookMyStay {
 
 /**
  * ==========================================================
- * Reservation Class
+ * InvalidBookingException Class
  * ==========================================================
  *
- * Represents a confirmed reservation.
+ * Custom exception for invalid booking scenarios.
  *
- * @version 5.0
+ * @version 9.0
  */
-class Reservation {
-    private String guestName;
-    private String roomType;
-
-    public Reservation(String guestName, String roomType) {
-        this.guestName = guestName;
-        this.roomType = roomType;
-    }
-
-    public String getGuestName() {
-        return guestName;
-    }
-
-    public String getRoomType() {
-        return roomType;
+class InvalidBookingException extends Exception {
+    public InvalidBookingException(String message) {
+        super(message);
     }
 }
 
 
 /**
  * ==========================================================
- * BookingHistory Class
+ * InvalidBookingValidator Class
  * ==========================================================
  *
- * Stores confirmed reservations in insertion order.
+ * Validates booking input before processing.
  *
- * @version 8.0
+ * @version 9.0
  */
-class BookingHistory {
-    private List<Reservation> reservations;
-
-    public BookingHistory() {
-        reservations = new ArrayList<>();
-    }
+class InvalidBookingValidator {
 
     /**
-     * Add a confirmed reservation to history
+     * Validate room type input
      */
-    public void addReservation(Reservation reservation) {
-        reservations.add(reservation);
-        System.out.println("Reservation stored: Guest: "
-                + reservation.getGuestName()
-                + ", Room Type: " + reservation.getRoomType());
-    }
-
-    /**
-     * Retrieve all reservations
-     */
-    public List<Reservation> getReservations() {
-        return reservations;
-    }
-}
-
-
-/**
- * ==========================================================
- * BookingReportService Class
- * ==========================================================
- *
- * Generates reports from booking history.
- * Reporting is read-only and does not modify stored data.
- *
- * @version 8.0
- */
-class BookingReportService {
-    private BookingHistory bookingHistory;
-
-    public BookingReportService(BookingHistory bookingHistory) {
-        this.bookingHistory = bookingHistory;
-    }
-
-    /**
-     * Generate and display booking history report
-     */
-    public void generateReport() {
-        System.out.println("Booking History Report");
-        System.out.println("---------------------------------------");
-
-        for (Reservation reservation : bookingHistory.getReservations()) {
-            System.out.println("Guest: " + reservation.getGuestName()
-                    + ", Room Type: " + reservation.getRoomType());
+    public static void validateRoomType(String roomType) throws InvalidBookingException {
+        if (!(roomType.equals("Single") || roomType.equals("Double") || roomType.equals("Suite"))) {
+            throw new InvalidBookingException("Invalid room type selected.");
         }
     }
 }
