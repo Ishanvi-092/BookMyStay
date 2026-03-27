@@ -3,20 +3,19 @@
  * Book My Stay App - Hotel Booking Management System
  * ==========================================================
  *
- * Use Case 5: Booking Request Queue (First-Come-First-Served)
+ * Use Case 6: Reservation Confirmation & Room Allocation
  *
  * Description:
- * This program demonstrates fair handling of booking requests
- * using a Queue data structure. Requests are stored in arrival
- * order and processed sequentially, ensuring fairness.
- * No inventory updates occur at this stage.
+ * This program demonstrates safe room allocation by confirming
+ * booking requests, generating unique room IDs, and updating
+ * inventory immediately. Double-booking is prevented using
+ * a Set data structure to enforce uniqueness.
  *
  * @author Developer
- * @version 5.1
+ * @version 6.1
  */
 
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 public class BookMyStay {
 
@@ -26,20 +25,26 @@ public class BookMyStay {
     public static void main(String[] args) {
 
         System.out.println("=======================================");
-        System.out.println("   Book My Stay - Booking Requests     ");
-        System.out.println("              Version 5.1              ");
+        System.out.println("   Book My Stay - Room Allocation      ");
+        System.out.println("              Version 6.1              ");
         System.out.println("=======================================\n");
+
+        // Initialize inventory
+        RoomInventory inventory = new RoomInventory();
+        inventory.addRoomType("Single Room", 2);
+        inventory.addRoomType("Suite Room", 1);
 
         // Initialize booking request queue
         BookingRequestQueue requestQueue = new BookingRequestQueue();
-
-        // Guests submit booking requests
         requestQueue.addRequest(new Reservation("Abhi", "Single Room"));
-        requestQueue.addRequest(new Reservation("Subha", "Double Room"));
+        requestQueue.addRequest(new Reservation("Subha", "Single Room"));
         requestQueue.addRequest(new Reservation("Vanmathi", "Suite Room"));
 
-        // Process requests in FIFO order
-        requestQueue.processRequests();
+        // Initialize booking service
+        BookingService bookingService = new BookingService(inventory);
+
+        // Process requests with allocation
+        bookingService.processRequests(requestQueue);
 
         System.out.println("\nApplication terminated.");
     }
@@ -56,7 +61,6 @@ public class BookMyStay {
  * @version 5.0
  */
 class Reservation {
-
     private String guestName;
     private String roomType;
 
@@ -81,21 +85,16 @@ class Reservation {
  * ==========================================================
  *
  * Manages booking requests using a FIFO queue.
- * Ensures requests are processed in arrival order.
  *
  * @version 5.0
  */
 class BookingRequestQueue {
-
     private Queue<Reservation> requestQueue;
 
     public BookingRequestQueue() {
         requestQueue = new LinkedList<>();
     }
 
-    /**
-     * Add a booking request to the queue
-     */
     public void addRequest(Reservation reservation) {
         requestQueue.add(reservation);
         System.out.println("Booking request added for Guest: "
@@ -103,18 +102,107 @@ class BookingRequestQueue {
                 + ", Room Type: " + reservation.getRoomType());
     }
 
+    public Reservation pollRequest() {
+        return requestQueue.poll();
+    }
+
+    public boolean isEmpty() {
+        return requestQueue.isEmpty();
+    }
+}
+
+
+/**
+ * ==========================================================
+ * RoomInventory Class
+ * ==========================================================
+ *
+ * Manages centralized room availability using HashMap.
+ *
+ * @version 3.0
+ */
+class RoomInventory {
+    private Map<String, Integer> inventory;
+
+    public RoomInventory() {
+        inventory = new HashMap<>();
+    }
+
+    public void addRoomType(String roomType, int availability) {
+        inventory.put(roomType, availability);
+    }
+
+    public int getAvailability(String roomType) {
+        return inventory.getOrDefault(roomType, 0);
+    }
+
+    public boolean decrementAvailability(String roomType) {
+        int current = getAvailability(roomType);
+        if (current > 0) {
+            inventory.put(roomType, current - 1);
+            return true;
+        }
+        return false;
+    }
+}
+
+
+/**
+ * ==========================================================
+ * BookingService Class
+ * ==========================================================
+ *
+ * Confirms reservations by allocating unique room IDs
+ * and updating inventory immediately.
+ *
+ * @version 6.0
+ */
+class BookingService {
+    private RoomInventory inventory;
+    private Map<String, Set<String>> allocatedRooms;
+
+    public BookingService(RoomInventory inventory) {
+        this.inventory = inventory;
+        allocatedRooms = new HashMap<>();
+    }
+
     /**
-     * Process requests in FIFO order
+     * Process queued requests with allocation
      */
-    public void processRequests() {
-        System.out.println("\nProcessing Booking Requests:");
+    public void processRequests(BookingRequestQueue requestQueue) {
+        System.out.println("\nRoom Allocation Processing:");
         System.out.println("---------------------------------------");
 
         while (!requestQueue.isEmpty()) {
-            Reservation reservation = requestQueue.poll();
-            System.out.println("Processing booking for Guest: "
+            Reservation reservation = requestQueue.pollRequest();
+            allocateRoom(reservation);
+        }
+    }
+
+    /**
+     * Allocate a room safely
+     */
+    private void allocateRoom(Reservation reservation) {
+        String roomType = reservation.getRoomType();
+
+        if (inventory.decrementAvailability(roomType)) {
+            // Generate unique room ID
+            int roomNumber = allocatedRooms
+                    .getOrDefault(roomType, new HashSet<>())
+                    .size() + 1;
+            String roomId = roomType.split(" ")[0] + "-" + roomNumber;
+
+            // Ensure uniqueness
+            allocatedRooms.putIfAbsent(roomType, new HashSet<>());
+            if (allocatedRooms.get(roomType).add(roomId)) {
+                System.out.println("Booking confirmed for Guest: "
+                        + reservation.getGuestName()
+                        + ", Room ID: " + roomId);
+            }
+        } else {
+            System.out.println("Booking failed for Guest: "
                     + reservation.getGuestName()
-                    + ", Room Type: " + reservation.getRoomType());
+                    + " (No availability for " + roomType + ")");
         }
     }
 }
