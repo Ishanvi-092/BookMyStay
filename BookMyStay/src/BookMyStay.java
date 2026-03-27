@@ -3,20 +3,23 @@
  * Book My Stay App - Hotel Booking Management System
  * ==========================================================
  *
- * Use Case 11: Concurrent Booking Simulation (Thread Safety)
+ * Use Case 12: Data Persistence & System Recovery
  *
  * Description:
- * This program simulates multiple guests submitting booking
- * requests concurrently. Synchronization ensures thread-safe
- * access to shared inventory and prevents double allocation.
+ * This program demonstrates persistence by saving inventory
+ * state to a file during shutdown and restoring it during
+ * startup. Serialization ensures durable state across runs.
  *
  * @author Developer
- * @version 11.1
+ * @version 12.1
  */
 
+import java.io.*;
 import java.util.*;
 
 public class BookMyStay {
+
+    private static final String INVENTORY_FILE = "inventory.dat";
 
     /**
      * Application entry point
@@ -24,46 +27,35 @@ public class BookMyStay {
     public static void main(String[] args) {
 
         System.out.println("=======================================");
-        System.out.println("   Book My Stay - Concurrent Booking   ");
-        System.out.println("              Version 11.1             ");
+        System.out.println("   Book My Stay - System Recovery      ");
+        System.out.println("              Version 12.1             ");
         System.out.println("=======================================\n");
 
-        // Initialize inventory
-        RoomInventory inventory = new RoomInventory();
-        inventory.addRoomType("Single", 5);
-        inventory.addRoomType("Double", 3);
-        inventory.addRoomType("Suite", 2);
+        // Initialize persistence service
+        PersistenceService persistenceService = new PersistenceService(INVENTORY_FILE);
 
-        // Initialize booking processor
-        ConcurrentBookingProcessor processor = new ConcurrentBookingProcessor(inventory);
+        // Attempt to restore inventory
+        RoomInventory inventory = persistenceService.loadInventory();
 
-        // Create guest threads
-        Thread t1 = new Thread(() -> processor.bookRoom("Abhi", "Single"));
-        Thread t2 = new Thread(() -> processor.bookRoom("Vanmathi", "Double"));
-        Thread t3 = new Thread(() -> processor.bookRoom("Kural", "Suite"));
-        Thread t4 = new Thread(() -> processor.bookRoom("Subha", "Single"));
+        if (inventory == null) {
+            System.out.println("System Recovery\nNo valid inventory data found. Starting fresh.\n");
 
-        // Start threads simultaneously
-        t1.start();
-        t2.start();
-        t3.start();
-        t4.start();
-
-        // Wait for all threads to finish
-        try {
-            t1.join();
-            t2.join();
-            t3.join();
-            t4.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            // Initialize fresh inventory
+            inventory = new RoomInventory();
+            inventory.addRoomType("Single", 5);
+            inventory.addRoomType("Double", 3);
+            inventory.addRoomType("Suite", 2);
         }
 
-        // Display remaining inventory
-        System.out.println("\nRemaining Inventory:");
+        // Display current inventory
+        System.out.println("Current Inventory:");
         System.out.println("Single: " + inventory.getAvailability("Single"));
         System.out.println("Double: " + inventory.getAvailability("Double"));
         System.out.println("Suite: " + inventory.getAvailability("Suite"));
+
+        // Save inventory state
+        persistenceService.saveInventory(inventory);
+        System.out.println("Inventory saved successfully.");
 
         System.out.println("\nApplication terminated.");
     }
@@ -75,71 +67,70 @@ public class BookMyStay {
  * RoomInventory Class
  * ==========================================================
  *
- * Manages centralized room availability with synchronized access.
+ * Serializable inventory class for persistence.
  *
- * @version 11.0
+ * @version 12.0
  */
-class RoomInventory {
+class RoomInventory implements Serializable {
+    private static final long serialVersionUID = 1L;
     private Map<String, Integer> inventory;
 
     public RoomInventory() {
         inventory = new HashMap<>();
     }
 
-    public synchronized void addRoomType(String roomType, int availability) {
+    public void addRoomType(String roomType, int availability) {
         inventory.put(roomType, availability);
     }
 
-    public synchronized int getAvailability(String roomType) {
+    public int getAvailability(String roomType) {
         return inventory.getOrDefault(roomType, 0);
     }
 
-    public synchronized boolean allocateRoom(String roomType) {
-        int current = getAvailability(roomType);
-        if (current > 0) {
-            inventory.put(roomType, current - 1);
-            return true;
-        }
-        return false;
+    public Map<String, Integer> getInventorySnapshot() {
+        return inventory;
     }
 }
 
 
 /**
  * ==========================================================
- * ConcurrentBookingProcessor Class
+ * PersistenceService Class
  * ==========================================================
  *
- * Handles concurrent booking requests safely using synchronization.
+ * Handles saving and loading inventory state using serialization.
  *
- * @version 11.0
+ * @version 12.0
  */
-class ConcurrentBookingProcessor {
-    private RoomInventory inventory;
-    private Map<String, Set<String>> allocatedRooms;
+class PersistenceService {
+    private String filePath;
 
-    public ConcurrentBookingProcessor(RoomInventory inventory) {
-        this.inventory = inventory;
-        allocatedRooms = new HashMap<>();
+    public PersistenceService(String filePath) {
+        this.filePath = filePath;
     }
 
     /**
-     * Book a room safely in a synchronized block
+     * Save inventory to file
      */
-    public void bookRoom(String guestName, String roomType) {
-        synchronized (this) {
-            if (inventory.allocateRoom(roomType)) {
-                allocatedRooms.putIfAbsent(roomType, new HashSet<>());
-                int roomNumber = allocatedRooms.get(roomType).size() + 1;
-                String roomId = roomType + "-" + roomNumber;
-                allocatedRooms.get(roomType).add(roomId);
+    public void saveInventory(RoomInventory inventory) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
+            oos.writeObject(inventory);
+        } catch (IOException e) {
+            System.out.println("Error saving inventory: " + e.getMessage());
+        }
+    }
 
-                System.out.println("Booking confirmed for Guest: "
-                        + guestName + ", Room ID: " + roomId);
-            } else {
-                System.out.println("Booking failed for Guest: "
-                        + guestName + " (No availability for " + roomType + ")");
-            }
+    /**
+     * Load inventory from file
+     */
+    public RoomInventory loadInventory() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filePath))) {
+            return (RoomInventory) ois.readObject();
+        } catch (FileNotFoundException e) {
+            return null; // No file found, start fresh
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Error loading inventory: " + e.getMessage());
+            return null;
         }
     }
 }
