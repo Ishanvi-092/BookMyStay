@@ -3,16 +3,20 @@
  * Book My Stay App - Hotel Booking Management System
  * ==========================================================
  *
- * Use Case 2: Basic Room Types & Static Availability
+ * Use Case 3: Centralized Room Inventory Management
  *
  * Description:
- * This program demonstrates object modeling using
- * abstraction and inheritance. Different room types
- * are created and their availability is displayed.
+ * This program demonstrates centralized inventory management
+ * using HashMap to store and manage room availability.
+ * It eliminates scattered state variables and ensures
+ * consistency across the system.
  *
  * @author Developer
- * @version 2.1
+ * @version 3.1
  */
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class BookMyStay {
 
@@ -22,24 +26,27 @@ public class BookMyStay {
     public static void main(String[] args) {
 
         System.out.println("=======================================");
-        System.out.println("       Book My Stay - Room Types       ");
-        System.out.println("              Version 2.1              ");
+        System.out.println("   Book My Stay - Centralized Inventory");
+        System.out.println("              Version 3.1              ");
         System.out.println("=======================================\n");
 
-        // Creating room objects (Polymorphism)
-        Room singleRoom = new SingleRoom();
-        Room doubleRoom = new DoubleRoom();
-        Room suiteRoom = new SuiteRoom();
+        // Initialize centralized inventory
+        RoomInventory inventory = new RoomInventory();
 
-        // Static availability variables
-        int singleAvailability = 5;
-        int doubleAvailability = 3;
-        int suiteAvailability = 2;
+        // Register room types with availability
+        inventory.addRoomType("Single Room", 5);
+        inventory.addRoomType("Double Room", 3);
+        inventory.addRoomType("Suite Room", 2);
 
-        // Display room details
-        singleRoom.displayRoomDetails(singleAvailability);
-        doubleRoom.displayRoomDetails(doubleAvailability);
-        suiteRoom.displayRoomDetails(suiteAvailability);
+        // Display current inventory state
+        inventory.displayInventory();
+
+        // Controlled update: booking a room
+        System.out.println("\nBooking one Double Room...");
+        inventory.updateAvailability("Double Room", -1);
+
+        // Display updated inventory state
+        inventory.displayInventory();
 
         System.out.println("\nApplication terminated.");
     }
@@ -48,85 +55,61 @@ public class BookMyStay {
 
 /**
  * ==========================================================
- * Abstract Room Class
+ * RoomInventory Class
  * ==========================================================
  *
- * Defines common attributes shared by all room types.
+ * Manages centralized room availability using HashMap.
+ * Provides controlled methods for updates and retrieval.
  *
- * @version 2.0
+ * @version 3.0
  */
-abstract class Room {
+class RoomInventory {
 
-    protected String roomType;
-    protected int beds;
-    protected double price;
+    private Map<String, Integer> inventory;
 
     /**
-     * Method to display room details
+     * Constructor initializes the inventory map
      */
-    public void displayRoomDetails(int availability) {
+    public RoomInventory() {
+        inventory = new HashMap<>();
+    }
 
-        System.out.println("Room Type: " + roomType);
-        System.out.println("Beds: " + beds);
-        System.out.println("Price per night: $" + price);
-        System.out.println("Available Rooms: " + availability);
+    /**
+     * Add a room type with initial availability
+     */
+    public void addRoomType(String roomType, int availability) {
+        inventory.put(roomType, availability);
+    }
+
+    /**
+     * Update availability for a given room type
+     */
+    public void updateAvailability(String roomType, int change) {
+        if (inventory.containsKey(roomType)) {
+            int current = inventory.get(roomType);
+            int updated = current + change;
+
+            if (updated < 0) {
+                System.out.println("Error: Cannot reduce availability below zero for " + roomType);
+            } else {
+                inventory.put(roomType, updated);
+                System.out.println("Updated availability for " + roomType + ": " + updated);
+            }
+        } else {
+            System.out.println("Error: Room type not found in inventory.");
+        }
+    }
+
+    /**
+     * Display current inventory state
+     */
+    public void displayInventory() {
+        System.out.println("\nCurrent Room Inventory:");
         System.out.println("---------------------------------------");
-    }
-}
-
-
-/**
- * ==========================================================
- * Single Room Class
- * ==========================================================
- *
- * Represents a single occupancy room.
- *
- * @version 2.0
- */
-class SingleRoom extends Room {
-
-    public SingleRoom() {
-        roomType = "Single Room";
-        beds = 1;
-        price = 80.0;
-    }
-}
-
-
-/**
- * ==========================================================
- * Double Room Class
- * ==========================================================
- *
- * Represents a double occupancy room.
- *
- * @version 2.0
- */
-class DoubleRoom extends Room {
-
-    public DoubleRoom() {
-        roomType = "Double Room";
-        beds = 2;
-        price = 120.0;
-    }
-}
-
-
-/**
- * ==========================================================
- * Suite Room Class
- * ==========================================================
- *
- * Represents a luxury suite room.
- *
- * @version 2.0
- */
-class SuiteRoom extends Room {
-
-    public SuiteRoom() {
-        roomType = "Suite Room";
-        beds = 3;
-        price = 250.0;
+        for (Map.Entry<String, Integer> entry : inventory.entrySet()) {
+            System.out.println("Room Type: " + entry.getKey());
+            System.out.println("Available Rooms: " + entry.getValue());
+            System.out.println("---------------------------------------");
+        }
     }
 }
